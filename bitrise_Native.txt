@@ -1,10 +1,11 @@
+---
 format_version: '7'
 default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
-project_type: react-native
+project_type: native
 trigger_map:
-- push_branch: "bitrise-develop"
+- push_branch: bitrise-develop
   workflow: primary
-- pull_request_source_branch: "bitrise-develop"
+- pull_request_source_branch: bitrise-develop
   workflow: primary
 workflows:
   primary:
@@ -21,7 +22,31 @@ workflows:
         - gradle_task: assembleRelease
         - gradle_file: "./build.gradle"
         - gradlew_path: "./gradlew"
-    - deploy-to-bitrise-io: {}
+    - script@1:
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+
+            # config
+            new_apk_path="${BITRISE_DEPLOY_DIR}/${BITRISE_GIT_BRANCH}.apk"
+
+            # rename the apk
+            mv "$BITRISE_APK_PATH" "$new_apk_path"
+
+            # expose the new path/value as an env var, for the same key
+            # overwriting the previous value
+            envman add --key BITRISE_APK_PATH --value "$new_apk_path"
+    - deploy-to-bitrise-io@1:
+        inputs:
+        - zip_name: "$BITRISE_GIT_BRANCH"
+        - file_name: "$$GIT_CLONE_COMMIT_MESSAGE_BODY"
+        is_always_run: false
+    - slack@3:
+        inputs:
+        - from_username: Bitrise Automatic Integration
+        - webhook_url: "$SLACK_WEBHOOK_URL"
+        - channel: general
     - cache-push@2.2.0: {}
 app:
   envs:

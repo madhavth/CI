@@ -3,9 +3,9 @@ format_version: '8'
 default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 project_type: flutter
 trigger_map:
-- push_branch: "*"
+- push_branch: bitrise-develop
   workflow: primary
-- pull_request_source_branch: "*"
+- pull_request_source_branch: bitrise-develop
   workflow: primary
 workflows:
   deploy:
@@ -26,14 +26,32 @@ workflows:
     - flutter-build@0:
         inputs:
         - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
-        - platform: both
-    - xcode-archive@2:
+        - platform: android
+    - script@1:
         inputs:
-        - project_path: "$BITRISE_PROJECT_PATH"
-        - scheme: "$BITRISE_SCHEME"
-        - export_method: "$BITRISE_EXPORT_METHOD"
-        - configuration: Release
-    - deploy-to-bitrise-io@1: {}
+        - content: |-
+            #!/bin/bash
+            set -ex
+
+            # config
+            new_apk_path="${BITRISE_DEPLOY_DIR}/${BITRISE_GIT_BRANCH}.apk"
+
+            # rename the apk
+            mv "$BITRISE_APK_PATH" "$new_apk_path"
+
+            # expose the new path/value as an env var, for the same key
+            # overwriting the previous value
+            envman add --key BITRISE_APK_PATH --value "$new_apk_path"
+    - deploy-to-bitrise-io@1:
+        inputs:
+        - zip_name: "$BITRISE_GIT_BRANCH"
+        - file_name: "$$GIT_CLONE_COMMIT_MESSAGE_BODY"
+        is_always_run: false
+    - slack@3:
+        inputs:
+        - from_username: Bitrise Automatic Integration
+        - webhook_url: "$SLACK_WEBHOOK_URL"
+        - channel: general
     - cache-push@2: {}
   primary:
     steps:
@@ -49,7 +67,35 @@ workflows:
     - flutter-analyze@0:
         inputs:
         - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
-    - deploy-to-bitrise-io@1: {}
+    - flutter-build@0:
+        inputs:
+        - project_location: "$BITRISE_FLUTTER_PROJECT_LOCATION"
+        - platform: android
+    - script@1:
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+
+            # config
+            new_apk_path="${BITRISE_DEPLOY_DIR}/${BITRISE_GIT_BRANCH}.apk"
+
+            # rename the apk
+            mv "$BITRISE_APK_PATH" "$new_apk_path"
+
+            # expose the new path/value as an env var, for the same key
+            # overwriting the previous value
+            envman add --key BITRISE_APK_PATH --value "$new_apk_path"
+    - deploy-to-bitrise-io@1:
+        inputs:
+        - zip_name: "$BITRISE_GIT_BRANCH"
+        - file_name: "$$GIT_CLONE_COMMIT_MESSAGE_BODY"
+        is_always_run: false
+    - slack@3:
+        inputs:
+        - from_username: Bitrise Automatic Integration
+        - webhook_url: "$SLACK_WEBHOOK_URL"
+        - channel: general
     - cache-push@2: {}
 app:
   envs:
