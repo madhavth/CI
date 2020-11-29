@@ -11,7 +11,7 @@ jobs:
       JVM_OPTS: -Xmx4G
     steps:
       - checkout
-      - run: echo "Madhavth is working for you"
+      - run: echo "Madhavth is working for you 👯"
       - restore_cache:
           key: jars-{{ checksum "build.gradle" }}-{{ checksum  "app/build.gradle" }}
       - run:
@@ -33,3 +33,8 @@ jobs:
       - store_artifacts:
           path: app/build/outputs/apk/
           destination: apks/
+      - run:
+            name: Upload to Slack
+            command: |
+              export GIT_COMMIT_DESC=$(git log --format=oneline -n 1 | sed -E 's/^[^ ]+ (.*)$/\1/g')
+              curl -F file=@app/build/outputs/apk/release/app-release-unsigned.apk -F channels=$SLACK_CHANNEL -H "Authorization: Bearer ${SLACK_API_TOKEN}" -F initial_comment="Changes:- ${GIT_COMMIT_DESC}" -F title="${CIRCLE_PROJECT_REPONAME}_${CIRCLE_BRANCH}"  https://slack.com/api/files.upload
