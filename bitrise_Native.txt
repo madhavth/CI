@@ -1,0 +1,45 @@
+format_version: '7'
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+project_type: react-native
+trigger_map:
+- push_branch: "bitrise-develop"
+  workflow: primary
+- pull_request_source_branch: "bitrise-develop"
+  workflow: primary
+workflows:
+  primary:
+    steps:
+    - activate-ssh-key@4.0.3:
+        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+    - git-clone@4.0.14: {}
+    - cache-pull@2.0.1: {}
+    - install-missing-android-tools@2.3.8:
+        inputs:
+        - gradlew_path: "./gradlew"
+    - gradle-runner@1.9.6:
+        inputs:
+        - gradle_task: assembleRelease
+        - gradle_file: "./build.gradle"
+        - gradlew_path: "./gradlew"
+    - deploy-to-bitrise-io: {}
+    - cache-push@2.2.0: {}
+app:
+  envs:
+  - opts:
+      is_expand: false
+    PROJECT_LOCATION: android
+  - opts:
+      is_expand: false
+    MODULE: app
+  - opts:
+      is_expand: false
+    VARIANT: ''
+  - opts:
+      is_expand: false
+    BITRISE_PROJECT_PATH: ios/app.xcodeproj
+  - opts:
+      is_expand: false
+    BITRISE_SCHEME: app
+  - opts:
+      is_expand: false
+    BITRISE_EXPORT_METHOD: development
